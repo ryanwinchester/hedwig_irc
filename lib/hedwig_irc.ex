@@ -36,6 +36,11 @@ defmodule Hedwig.Adapters.IRC do
     {:noreply, state}
   end
 
+  def handle_cast({:command, raw_cmd}, state = {_robot, _opts, client}) do
+    Client.cmd client, raw_cmd
+    {:noreply, state}
+  end
+
   def handle_info(:connect, state = {_robot, opts, client}) do
     host = Keyword.fetch!(opts, :server)
     port = Keyword.get(opts, :port, 6667)
@@ -67,10 +72,17 @@ defmodule Hedwig.Adapters.IRC do
     {:noreply, state}
   end
 
+  # channel mention
   def handle_info({:mentioned, _msg, _user, _channel}, state) do
     {:noreply, state}
   end
 
+  # private mention
+  def handle_info({:mentioned, _msg, _user}, state) do
+    {:noreply, state}
+  end
+
+  # channel message
   def handle_info({:received, msg, %SenderInfo{} = user, channel}, state = {robot, _opts, _client}) do
     incoming_message = %Message{
       ref: make_ref(),
@@ -79,6 +91,22 @@ defmodule Hedwig.Adapters.IRC do
       text: msg,
       user: %User{id: "#{user.user}@#{user.host}", name: user.nick},
       type: "groupchat"
+    }
+
+    Robot.handle_in(robot, incoming_message)
+
+    {:noreply, state}
+  end
+
+  # private message
+  def handle_info({:received, msg, %SenderInfo{} = user}, state = {robot, _opts, _client}) do
+    incoming_message = %Message{
+      ref: make_ref(),
+      robot: robot,
+      room: "#{user.user}@#{user.host}",
+      text: msg,
+      user: %User{id: "#{user.user}@#{user.host}", name: user.nick},
+      type: "privatemessage"
     }
 
     Robot.handle_in(robot, incoming_message)
