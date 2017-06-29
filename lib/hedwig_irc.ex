@@ -41,6 +41,10 @@ defmodule Hedwig.Adapters.IRC do
     {:noreply, state}
   end
 
+  def command(pid, %Hedwig.Message{text: cmd}) do
+    GenServer.cast(pid, {:command, cmd})
+  end
+
   def handle_info(:connect, state = {_robot, opts, client}) do
     host = Keyword.fetch!(opts, :server)
     port = Keyword.get(opts, :port, 6667)
